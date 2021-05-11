@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IssueTracker.EntityFramework\IssueTracker.EntityFramework.csproj" />
-    <ProjectReference Include="..\TaskManager.EntityFramework\IssueTracker.EntityFramework.csproj" />
   </ItemGroup>
 
 </Project>

@@ -26,8 +26,39 @@ namespace TaskManagerApi.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Get project tasks.
+        /// </summary>
+        /// <param name="projectGuid"></param>
+        /// <returns></returns>
+        [HttpGet("{projectGuid}", Name = "GetProjectTasks")]
+        public async Task<IEnumerable<TaskDto>> GetProjectTasks(
+            [FromRoute] Guid projectGuid)
+        {
+            return await _dbContext
+                .Tasks
+                .Include("User")
+                .Where(x => x.ProjectId == projectGuid)
+                .Select(task => TaskDto.ToDto(task))
+                .ToListAsync();
+        }
+
+        [HttpGet("{projectGuid}/user/{userGuid}")]
+        public async Task<IEnumerable<TaskDto>> GetProjectUserTasks(
+            [FromRoute] Guid projectGuid,
+            [FromRoute] Guid userGuid)
+        {
+            return await _dbContext
+                .Tasks
+                .Include("User")
+                .Where(x => x.ProjectId == projectGuid
+                        && x.UserId == userGuid)
+                .Select(task => TaskDto.ToDto(task))
+                .ToListAsync();
+        }
+
         [HttpPut]
-        public async Task<IActionResult> UpdateTask([FromBody]UpdateTaskDto task)
+        public async Task<IActionResult> UpdateTask([FromBody] UpdateTaskDto task)
         {
             _dbContext
                 .Tasks
@@ -68,35 +99,19 @@ namespace TaskManagerApi.Controllers
             return Ok(state);
         }
 
-        /// <summary>
-        /// Get project tasks.
-        /// </summary>
-        /// <param name="projectGuid"></param>
-        /// <returns></returns>
-        [HttpGet("{projectGuid}", Name = "GetProjectTasks")]
-        public async Task<IEnumerable<TaskDto>> GetProjectTasks(
-            [FromRoute]Guid projectGuid)
+        [HttpDelete("{taskGuid}")]
+        public async Task<IActionResult> Delete(
+            [FromRoute] Guid taskGuid)
         {
-            return await _dbContext
-                .Tasks
-                .Include("User")
-                .Where(x => x.ProjectId == projectGuid)
-                .Select(task => TaskDto.ToDto(task))
-                .ToListAsync();
-        }
+            var task = await _dbContext
+                        .Tasks
+                        .FindAsync(taskGuid);
 
-        [HttpGet("{projectGuid}/user/{userGuid}")]
-        public async Task<IEnumerable<TaskDto>> GetProjectUserTasks(
-            [FromRoute] Guid projectGuid,
-            [FromRoute] Guid userGuid)
-        {
-            return await _dbContext
-                .Tasks
-                .Include("User")
-                .Where(x => x.ProjectId == projectGuid 
-                        && x.UserId == userGuid)
-                .Select(task => TaskDto.ToDto(task))
-                .ToListAsync();
+            _dbContext.Tasks.Remove(task);
+
+            var res = await _dbContext.SaveChangesAsync();
+
+            return Ok(res);
         }
     }
 }
