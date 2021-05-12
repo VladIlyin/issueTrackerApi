@@ -32,19 +32,19 @@ namespace TaskManagerApi.Controllers
         /// <param name="projectGuid"></param>
         /// <returns></returns>
         [HttpGet("{projectGuid}", Name = "GetProjectTasks")]
-        public async Task<IEnumerable<TaskDto>> GetProjectTasks(
+        public async Task<IEnumerable<TaskResponse>> GetProjectTasks(
             [FromRoute] Guid projectGuid)
         {
             return await _dbContext
                 .Tasks
                 .Include("User")
                 .Where(x => x.ProjectId == projectGuid)
-                .Select(task => TaskDto.ToDto(task))
+                .Select(task => TaskResponse.Map(task))
                 .ToListAsync();
         }
 
         [HttpGet("{projectGuid}/user/{userGuid}")]
-        public async Task<IEnumerable<TaskDto>> GetProjectUserTasks(
+        public async Task<IEnumerable<TaskResponse>> GetProjectUserTasks(
             [FromRoute] Guid projectGuid,
             [FromRoute] Guid userGuid)
         {
@@ -53,23 +53,23 @@ namespace TaskManagerApi.Controllers
                 .Include("User")
                 .Where(x => x.ProjectId == projectGuid
                         && x.UserId == userGuid)
-                .Select(task => TaskDto.ToDto(task))
+                .Select(task => TaskResponse.Map(task))
                 .ToListAsync();
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateTask([FromBody] UpdateTaskDto task)
+        public async Task<IActionResult> UpdateTask([FromBody] TaskUpdateRequest task)
         {
             _dbContext
                 .Tasks
-                .Update(task.ToDal());
+                .Update(task.Map());
 
             var state = await _dbContext.SaveChangesAsync();
             return Ok(state);
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddTask([FromBody] AddTaskDto task)
+        public async Task<IActionResult> AddTask([FromBody] TaskAddRequest task)
         {
             var taskDal = task.ToDal();
             await _dbContext
@@ -87,7 +87,7 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPost("statusUpdate")]
-        public async Task<IActionResult> UpdateTaskStatus([FromBody] UpdateTaskStatusDto taskDto)
+        public async Task<IActionResult> UpdateTaskStatus([FromBody] TaskStatusUpdateRequest taskDto)
         {
             var task = await _dbContext
                     .Tasks

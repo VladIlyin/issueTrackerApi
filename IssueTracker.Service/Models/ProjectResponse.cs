@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using IssueTracker.EntityFramework.Models;
 
 namespace TaskManagerApi.Models
 {
-    public class ProjectDto
+    public class ProjectResponse
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
 
-        public static ProjectDto ToDto(Project projectDal)
+        public static ProjectResponse Map(Project projectDal)
         {
-            return new ProjectDto()
+            return new ProjectResponse()
             {
                 Id = projectDal.Id,
                 Name = projectDal.Name

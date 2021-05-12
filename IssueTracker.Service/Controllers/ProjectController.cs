@@ -36,7 +36,7 @@ namespace TaskManagerApi.Controllers
                 .ToListAsync();
 
             _logger.LogInformation("Got all projects successfully");
-            return Ok(projects.Select(x => ProjectDto.ToDto(x)));
+            return Ok(projects.Select(x => ProjectResponse.Map(x)));
         }
 
         [HttpGet("users/{projectGuid}")]
@@ -55,11 +55,11 @@ namespace TaskManagerApi.Controllers
             return Ok(
                 projectUsers
                     .GroupBy(g => new { g.ProjectId, g.Project.Name })
-                    .Select(x => new ProjectUsersDto()
+                    .Select(x => new ProjectUsersResponse()
                     { 
                         ProjectId = x.Key.ProjectId,
                         ProjectName = x.Key.Name,
-                        Users = x.Select(pu => UserDto.ToDto(pu.User))
+                        Users = x.Select(pu => UserResponse.Map(pu.User))
                     })
                     .ToList());
         }

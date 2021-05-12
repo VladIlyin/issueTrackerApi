@@ -27,22 +27,22 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<UserDto>> GetAll()
+        public async Task<IEnumerable<UserResponse>> GetAll()
         {
             return await _dbContext
                 .Users
-                .Select(user => UserDto.ToDto(user))
+                .Select(user => UserResponse.Map(user))
                 .ToListAsync();
         }
 
         [HttpGet("{userGuid}")]
-        public async Task<UserDto> Get([FromRoute] Guid userGuid)
+        public async Task<UserResponse> Get([FromRoute] Guid userGuid)
         {
             var user = await _dbContext
                 .Users
                 .FindAsync(userGuid);
 
-            return UserDto.ToDto(user);
+            return UserResponse.Map(user);
         }
 
         [HttpGet("projects/{userGuid}")]
@@ -61,16 +61,16 @@ namespace TaskManagerApi.Controllers
             return Ok(
                 userProjects
                     .GroupBy(g => new { g.UserId })
-                    .Select(x => new UserProjectsDto()
+                    .Select(x => new UserProjectsResponse()
                     {
                         UserId = x.Key.UserId,
-                        Projects = x.Select(pu => ProjectDto.ToDto(pu.Project))
+                        Projects = x.Select(pu => ProjectResponse.Map(pu.Project))
                     })
                     .ToList());
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginInfo loginInfo)
+        public IActionResult Login([FromBody] UserLoginRequest loginInfo)
         {
             var user = _dbContext.Users.FirstOrDefault(x => x.Login == loginInfo.Login);
 
@@ -93,7 +93,7 @@ namespace TaskManagerApi.Controllers
         /// <param name="userDto"></param>
         /// <returns></returns>
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] UserAddDto userDto)
+        public async Task<IActionResult> Add([FromBody] UserAddRequest userDto)
         {
             var user = userDto.ToDal();
             await _dbContext.AddAsync(user);
@@ -114,7 +114,7 @@ namespace TaskManagerApi.Controllers
         /// <param name="assignUserDto"></param>
         /// <returns></returns>
         [HttpPost("assign")]
-        public async Task<IActionResult> AssignUser([FromBody] AssignUserDto assignUserDto)
+        public async Task<IActionResult> AssignUser([FromBody] UserAssignOnProjectRequest assignUserDto)
         {
             await _dbContext
                     .UserProjects
@@ -135,7 +135,7 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateUser([FromBody] UserUpdateDto userDto)
+        public async Task<IActionResult> UpdateUser([FromBody] UserUpdateRequest userDto)
         {
             var user = await _dbContext
                                 .Users

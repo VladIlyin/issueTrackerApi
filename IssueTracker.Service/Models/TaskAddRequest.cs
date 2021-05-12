@@ -1,26 +1,26 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace TaskManagerApi.Models
 {
-    public class UpdateTaskDto
+    public class TaskAddRequest
     {
-        public Guid Id { get; set; }
+        [Required]
+        [MaxLength(320)]
         public string Title { get; set; }
-        public Guid UserId { get; set; }
+        [Required]
         public Guid ProjectId { get; set; }
-        public int Status { get; set; }
+        public Guid? UserId { get; set; }
+        public int? Status { get; set; }
 
         public IssueTracker.EntityFramework.Models.Task ToDal()
         {
             return new IssueTracker.EntityFramework.Models.Task()
             {
-                Id = Id,
+                Id = Guid.NewGuid(),
                 Title = Title,
-                UserId = UserId,
                 ProjectId = ProjectId,
+                UserId = UserId,
                 Status = Status
             };
         }
