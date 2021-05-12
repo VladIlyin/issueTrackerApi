@@ -61,7 +61,7 @@ namespace TaskManagerApi.Controllers
                         ProjectName = x.Key.Name,
                         Users = x.Select(pu => UserResponse.Map(pu.User))
                     })
-                    .ToList());
+                    .FirstOrDefault());
         }
     }
 }

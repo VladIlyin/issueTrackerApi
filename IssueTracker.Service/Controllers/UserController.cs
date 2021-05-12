@@ -66,7 +66,7 @@ namespace TaskManagerApi.Controllers
                         UserId = x.Key.UserId,
                         Projects = x.Select(pu => ProjectResponse.Map(pu.Project))
                     })
-                    .ToList());
+                    .FirstOrDefault());
         }
 
         [HttpPost("login")]
