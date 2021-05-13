@@ -8,7 +8,7 @@ namespace TaskManagerApi.Models
         [Required]
         public Guid Id { get; set; }
         public string Title { get; set; }
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         public Guid ProjectId { get; set; }
         public int Status { get; set; }
 

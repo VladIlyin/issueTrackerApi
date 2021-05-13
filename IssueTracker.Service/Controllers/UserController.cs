@@ -10,6 +10,7 @@ using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
 using IssueTracker.Persistance.Queries;
 using System.Threading;
+using System.Net;
 
 namespace TaskManagerApi.Controllers
 {
@@ -153,28 +154,42 @@ namespace TaskManagerApi.Controllers
 
         [HttpPut]
         public async Task<IActionResult> UpdateUser(
-            [FromBody] UserUpdateRequest userDto,
+            [FromBody] UserUpdateRequest userUpdateRequest,
             CancellationToken cancellationToken = default)
         {
-            var user = await _dbContext
-                                .Users
-                                .FindAsync(new object[] { userDto.Id }, cancellationToken);
-
-            if (user == null)
+            //TODO: try patch instead put, cause we update certain fields here
+            try
             {
-                return NotFound();
+                var user = await _dbContext
+                    .Users
+                    .FindAsync(new object[] { userUpdateRequest.Id }, cancellationToken);
+
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                user.FirstName = userUpdateRequest.FirstName;
+                user.LastName = userUpdateRequest.LastName;
+                user.RoleId = userUpdateRequest.RoleId;
+
+                _dbContext
+                    .Users
+                    .Update(user);
+
+                var state = await _dbContext.SaveChangesAsync();
+                return Ok(state);
             }
-
-            user.FirstName = userDto.FirstName;
-            user.LastName = userDto.LastName;
-            user.RoleId = userDto.RoleId;
-
-            _dbContext
-                .Users
-                .Update(user);
-
-            var state = await _dbContext.SaveChangesAsync();
-            return Ok(state);
+            catch (DbUpdateException ex)
+            when (ex.InnerException is Npgsql.PostgresException
+                && (ex.InnerException as Npgsql.PostgresException).SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            {
+                return Conflict(ex.InnerException.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
         [HttpDelete("{userGuid}")]
