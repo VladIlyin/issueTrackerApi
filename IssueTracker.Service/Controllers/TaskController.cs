@@ -10,6 +10,7 @@ using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
 using System.Threading;
 using System.Net;
+using IssueTracker.Service.Extensions;
 
 namespace TaskManagerApi.Controllers
 {
@@ -76,8 +77,7 @@ namespace TaskManagerApi.Controllers
                 return Ok(state);
             }
             catch (DbUpdateException ex)
-            when (ex.InnerException is Npgsql.PostgresException
-                && (ex.InnerException as Npgsql.PostgresException).SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            when (ex.IsPgSqlKeyViolationException())
             {
                 return Conflict(ex.InnerException.Message);
             }
@@ -93,10 +93,10 @@ namespace TaskManagerApi.Controllers
 
         [HttpPost]
         public async Task<IActionResult> AddTask(
-            [FromBody] TaskAddRequest task,
+            [FromBody] TaskAddRequest taskAddRequest,
             CancellationToken cancellationToken = default)
         {
-            var taskDal = task.ToDal();
+            var taskDal = taskAddRequest.ToDal();
 
             try
             {
@@ -108,8 +108,7 @@ namespace TaskManagerApi.Controllers
                 return Ok(taskDal.Id);
             }
             catch (DbUpdateException ex)
-            when (ex.InnerException is Npgsql.PostgresException 
-                && (ex.InnerException as Npgsql.PostgresException).SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            when (ex.IsPgSqlKeyViolationException())
             {
                 return Conflict(ex.InnerException.Message);
             }
@@ -137,11 +136,11 @@ namespace TaskManagerApi.Controllers
 
                 task.Status = taskRequest.Status;
                 var state = await _dbContext.SaveChangesAsync(cancellationToken);
+                
                 return Ok(state);
             }
             catch (DbUpdateException ex)
-            when (ex.InnerException is Npgsql.PostgresException
-                && (ex.InnerException as Npgsql.PostgresException).SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            when (ex.IsPgSqlKeyViolationException())
             {
                 return Conflict(ex.InnerException.Message);
             }
@@ -156,19 +155,21 @@ namespace TaskManagerApi.Controllers
             [FromRoute] Guid taskGuid,
             CancellationToken cancellationToken = default)
         {
-            var task = await _dbContext
-                        .Tasks
-                        .FindAsync(new object[] { taskGuid }, cancellationToken);
-
-            if (task == null)
+            try
             {
-                return NotFound($"Task not found. Id = {taskGuid}");
+                _dbContext.Tasks.Remove(new ProjectTask() { Id = taskGuid });
+                var res = await _dbContext.SaveChangesAsync(cancellationToken);
+
+                return Ok(res);
             }
-
-            _dbContext.Tasks.Remove(task);
-            var res = await _dbContext.SaveChangesAsync(cancellationToken);
-
-            return Ok(res);
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
     }
 }

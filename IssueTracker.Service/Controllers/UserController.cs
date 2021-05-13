@@ -11,6 +11,7 @@ using ProjectTask = IssueTracker.EntityFramework.Models.Task;
 using IssueTracker.Persistance.Queries;
 using System.Threading;
 using System.Net;
+using IssueTracker.Service.Extensions;
 
 namespace TaskManagerApi.Controllers
 {
@@ -111,17 +112,23 @@ namespace TaskManagerApi.Controllers
             CancellationToken cancellationToken = default)
         {
             var user = userDto.ToDal();
-            await _dbContext
-                .AddAsync(user, cancellationToken);
-
-            var state = await _dbContext.SaveChangesAsync();
-
-            if (state > 0)
+            try
             {
+                await _dbContext
+                    .AddAsync(user, cancellationToken);
+
+                var state = await _dbContext.SaveChangesAsync();
                 return Ok(user.Id);
             }
-
-            return BadRequest();
+            catch (DbUpdateException ex)
+            when (ex.IsPgSqlKeyViolationException())
+            {
+                return Conflict(ex.InnerException.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
         /// <summary>
@@ -134,22 +141,28 @@ namespace TaskManagerApi.Controllers
             [FromBody] UserAssignOnProjectRequest assignUserDto,
             CancellationToken cancellationToken = default)
         {
-            await _dbContext
-                    .UserProjects
-                    .AddAsync(new UserProject()
-                    {
-                        ProjectId = assignUserDto.ProjectGuid,
-                        UserId = assignUserDto.UserGuid
-                    }, cancellationToken);
-
-            var state = await _dbContext.SaveChangesAsync();
-
-            if (state > 0)
+            try
             {
+                await _dbContext
+                .UserProjects
+                .AddAsync(new UserProject()
+                {
+                    ProjectId = assignUserDto.ProjectGuid,
+                    UserId = assignUserDto.UserGuid
+                }, cancellationToken);
+
+                var state = await _dbContext.SaveChangesAsync();
                 return Ok();
             }
-
-            return BadRequest();
+            catch (DbUpdateException ex)
+            when (ex.IsPgSqlKeyViolationException())
+            {
+                return Conflict(ex.InnerException.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
         [HttpPut]
@@ -181,8 +194,7 @@ namespace TaskManagerApi.Controllers
                 return Ok(state);
             }
             catch (DbUpdateException ex)
-            when (ex.InnerException is Npgsql.PostgresException
-                && (ex.InnerException as Npgsql.PostgresException).SqlState == Npgsql.PostgresErrorCodes.ForeignKeyViolation)
+            when (ex.IsPgSqlKeyViolationException())
             {
                 return Conflict(ex.InnerException.Message);
             }
@@ -197,15 +209,24 @@ namespace TaskManagerApi.Controllers
             [FromRoute] Guid userGuid,
             CancellationToken cancellationToken = default)
         {
-            var user = new User()
+            try
             {
-                Id = userGuid
-            };
+                _dbContext.Remove(new User()
+                {
+                    Id = userGuid
+                });
+                await _dbContext.SaveChangesAsync(cancellationToken);
 
-            _dbContext.Remove(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            return Ok();
+                return Ok();
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
     }
 }
