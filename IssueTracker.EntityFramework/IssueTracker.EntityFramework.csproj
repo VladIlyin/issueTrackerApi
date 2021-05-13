@@ -10,4 +10,12 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Commands\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IssueTracker.Persistance\IssueTracker.Persistance.csproj" />
+  </ItemGroup>
+
 </Project>

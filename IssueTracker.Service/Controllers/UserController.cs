@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IssueTracker.EntityFramework.Models;
 using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
+using IssueTracker.Persistance.Queries;
 using System.Threading;
 
 namespace TaskManagerApi.Controllers
@@ -17,23 +18,24 @@ namespace TaskManagerApi.Controllers
     public class UserController : ControllerBase
     {
         private readonly TaskManagerContext _dbContext;
+        private readonly IUserGetAllQuery _userGetAllQuery;
         private readonly ILogger<UserController> _logger;
 
         public UserController(
             TaskManagerContext dbContext,
+            IUserGetAllQuery userGetAllQuery,
             ILogger<UserController> logger)
         {
             _dbContext = dbContext;
+            _userGetAllQuery = userGetAllQuery;
             _logger = logger;
         }
 
         [HttpGet]
-        public async Task<IEnumerable<UserResponse>> GetAll()
+        public async Task<IEnumerable<IssueTracker.Persistance.Models.User>> GetAll(
+            CancellationToken cancellationToken = default)
         {
-            return await _dbContext
-                .Users
-                .Select(user => UserResponse.Map(user))
-                .ToListAsync();
+            return await _userGetAllQuery.ExecuteAsync();
         }
 
         [HttpGet("{userGuid}")]
