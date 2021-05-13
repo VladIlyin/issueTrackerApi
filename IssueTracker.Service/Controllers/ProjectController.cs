@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IssueTracker.EntityFramework.Models;
 using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
+using System.Threading;
 
 namespace TaskManagerApi.Controllers
 {
@@ -27,20 +28,22 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Getting all projects...");
 
             var projects = await _dbContext
                 .Projects
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation("Got all projects successfully");
             return Ok(projects.Select(x => ProjectResponse.Map(x)));
         }
 
         [HttpGet("users/{projectGuid}")]
-        public async Task<IActionResult> GetProjectUsers(Guid projectGuid)
+        public async Task<IActionResult> GetProjectUsers(
+            Guid projectGuid,
+            CancellationToken cancellationToken = default)
         {
             _logger.LogInformation($"Getting all users for project with id {projectGuid}");
 
@@ -49,7 +52,7 @@ namespace TaskManagerApi.Controllers
                 .Include("User")
                 .Include("Project")
                 .Where(x => x.ProjectId == projectGuid)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation($"Users for project with id {projectGuid} retrived successfully");
             return Ok(

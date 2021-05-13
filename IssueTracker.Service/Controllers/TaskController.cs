@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using IssueTracker.EntityFramework.Models;
 using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
+using System.Threading;
+using System.Net;
 
 namespace TaskManagerApi.Controllers
 {
@@ -33,20 +35,22 @@ namespace TaskManagerApi.Controllers
         /// <returns></returns>
         [HttpGet("{projectGuid}", Name = "GetProjectTasks")]
         public async Task<IEnumerable<TaskResponse>> GetProjectTasks(
-            [FromRoute] Guid projectGuid)
+            [FromRoute] Guid projectGuid,
+            CancellationToken cancellationToken = default)
         {
             return await _dbContext
                 .Tasks
                 .Include("User")
                 .Where(x => x.ProjectId == projectGuid)
                 .Select(task => TaskResponse.Map(task))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
         [HttpGet("{projectGuid}/user/{userGuid}")]
         public async Task<IEnumerable<TaskResponse>> GetProjectUserTasks(
             [FromRoute] Guid projectGuid,
-            [FromRoute] Guid userGuid)
+            [FromRoute] Guid userGuid,
+            CancellationToken cancellationToken = default)
         {
             return await _dbContext
                 .Tasks
@@ -58,7 +62,9 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateTask([FromBody] TaskUpdateRequest task)
+        public async Task<IActionResult> UpdateTask(
+            [FromBody] TaskUpdateRequest task,
+            CancellationToken cancellationToken = default)
         {
             _dbContext
                 .Tasks
@@ -69,47 +75,58 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddTask([FromBody] TaskAddRequest task)
+        public async Task<IActionResult> AddTask(
+            [FromBody] TaskAddRequest task,
+            CancellationToken cancellationToken = default)
         {
             var taskDal = task.ToDal();
             await _dbContext
                     .Tasks
                     .AddAsync(task.ToDal());
 
-            var state = await _dbContext.SaveChangesAsync();
-
-            if (state > 0)
+            try
             {
+                await _dbContext.SaveChangesAsync(cancellationToken);
                 return Ok(taskDal.Id);
             }
-
-            return BadRequest();
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex);
+            }
         }
 
         [HttpPost("statusUpdate")]
-        public async Task<IActionResult> UpdateTaskStatus([FromBody] TaskStatusUpdateRequest taskDto)
+        public async Task<IActionResult> UpdateTaskStatus(
+            [FromBody] TaskStatusUpdateRequest taskDto,
+            CancellationToken cancellationToken = default)
         {
             var task = await _dbContext
                     .Tasks
                     .FindAsync(taskDto.TaskId);
 
             task.Status = taskDto.Status;
-            var state = await _dbContext.SaveChangesAsync();
+            var state = await _dbContext.SaveChangesAsync(cancellationToken);
 
             return Ok(state);
         }
 
         [HttpDelete("{taskGuid}")]
         public async Task<IActionResult> Delete(
-            [FromRoute] Guid taskGuid)
+            [FromRoute] Guid taskGuid,
+            CancellationToken cancellationToken = default)
         {
             var task = await _dbContext
                         .Tasks
-                        .FindAsync(taskGuid);
+                        .FindAsync(new object[] { taskGuid }, cancellationToken);
+
+            if (task == null)
+            {
+                return NotFound($"Task not found. Id = {taskGuid}");
+            }
 
             _dbContext.Tasks.Remove(task);
 
-            var res = await _dbContext.SaveChangesAsync();
+            var res = await _dbContext.SaveChangesAsync(cancellationToken);
 
             return Ok(res);
         }

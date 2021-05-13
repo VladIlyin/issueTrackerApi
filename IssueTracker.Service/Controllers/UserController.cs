@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using IssueTracker.EntityFramework.Models;
 using TaskManagerApi.Models;
 using ProjectTask = IssueTracker.EntityFramework.Models.Task;
+using System.Threading;
 
 namespace TaskManagerApi.Controllers
 {
@@ -36,17 +37,21 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet("{userGuid}")]
-        public async Task<UserResponse> Get([FromRoute] Guid userGuid)
+        public async Task<UserResponse> Get(
+            [FromRoute] Guid userGuid,
+            CancellationToken cancellationToken = default)
         {
             var user = await _dbContext
                 .Users
-                .FindAsync(userGuid);
+                .FindAsync(new object[] { userGuid }, cancellationToken);
 
             return UserResponse.Map(user);
         }
 
         [HttpGet("projects/{userGuid}")]
-        public async Task<IActionResult> GetUserProjects(Guid userGuid)
+        public async Task<IActionResult> GetUserProjects(
+            Guid userGuid,
+            CancellationToken cancellationToken = default)
         {
             _logger.LogInformation($"Getting all projects for user with id {userGuid}");
 
@@ -55,7 +60,7 @@ namespace TaskManagerApi.Controllers
                 .Include("User")
                 .Include("Project")
                 .Where(x => x.UserId == userGuid)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation($"Projects for user with id {userGuid} retrived successfully");
             return Ok(
@@ -70,9 +75,14 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] UserLoginRequest loginInfo)
+        public IActionResult Login(
+            [FromBody] UserLoginRequest loginInfo,
+            CancellationToken cancellationToken = default)
         {
-            var user = _dbContext.Users.FirstOrDefault(x => x.Login == loginInfo.Login);
+            var user = _dbContext
+                .Users
+                .Where(x => x.Login == loginInfo.Login)
+                .FirstOrDefault();
 
             if (user == null)
             {
@@ -93,10 +103,13 @@ namespace TaskManagerApi.Controllers
         /// <param name="userDto"></param>
         /// <returns></returns>
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] UserAddRequest userDto)
+        public async Task<IActionResult> Add(
+            [FromBody] UserAddRequest userDto,
+            CancellationToken cancellationToken = default)
         {
             var user = userDto.ToDal();
-            await _dbContext.AddAsync(user);
+            await _dbContext
+                .AddAsync(user, cancellationToken);
 
             var state = await _dbContext.SaveChangesAsync();
 
@@ -114,7 +127,9 @@ namespace TaskManagerApi.Controllers
         /// <param name="assignUserDto"></param>
         /// <returns></returns>
         [HttpPost("assign")]
-        public async Task<IActionResult> AssignUser([FromBody] UserAssignOnProjectRequest assignUserDto)
+        public async Task<IActionResult> AssignUser(
+            [FromBody] UserAssignOnProjectRequest assignUserDto,
+            CancellationToken cancellationToken = default)
         {
             await _dbContext
                     .UserProjects
@@ -122,7 +137,7 @@ namespace TaskManagerApi.Controllers
                     {
                         ProjectId = assignUserDto.ProjectGuid,
                         UserId = assignUserDto.UserGuid
-                    });
+                    }, cancellationToken);
 
             var state = await _dbContext.SaveChangesAsync();
 
@@ -135,11 +150,13 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateUser([FromBody] UserUpdateRequest userDto)
+        public async Task<IActionResult> UpdateUser(
+            [FromBody] UserUpdateRequest userDto,
+            CancellationToken cancellationToken = default)
         {
             var user = await _dbContext
                                 .Users
-                                .FindAsync(userDto.Id);
+                                .FindAsync(new object[] { userDto.Id }, cancellationToken);
 
             if (user == null)
             {
@@ -159,7 +176,9 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpDelete("{userGuid}")]
-        public async Task<IActionResult> Delete([FromRoute] Guid userGuid)
+        public async Task<IActionResult> Delete(
+            [FromRoute] Guid userGuid,
+            CancellationToken cancellationToken = default)
         {
             var user = new User()
             {
@@ -167,7 +186,7 @@ namespace TaskManagerApi.Controllers
             };
 
             _dbContext.Remove(user);
-            await _dbContext.SaveChangesAsync();
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
             return Ok();
         }
